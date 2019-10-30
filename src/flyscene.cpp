@@ -176,6 +176,10 @@ void Flyscene::raytraceScene(int width, int height) {
   Eigen::Vector3f origin = flycamera.getCenter();
   Eigen::Vector3f screen_coords;
 
+
+  //make level
+  int level = 0;
+
   vector<Box> boxes = getMoreBoxes();
 
 
@@ -186,7 +190,7 @@ void Flyscene::raytraceScene(int width, int height) {
       // create a ray from the camera passing through the pixel (i,j)
       screen_coords = flycamera.screenToWorld(Eigen::Vector2f(/*image_size[0] -*/ i, /*image_size[1] - */j));
       // launch raytracing for the given ray and write result to pixel data
-      pixel_data[j][i] = traceRay(origin, screen_coords, boxes);
+      pixel_data[j][i] = traceRay(origin, screen_coords, boxes, level);
     }
   }
 
@@ -197,12 +201,11 @@ void Flyscene::raytraceScene(int width, int height) {
 
 
 Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f &origin,
-                                   Eigen::Vector3f &dest, vector<Box>& boxes) {
+                                   Eigen::Vector3f &dest, vector<Box>& boxes, int level) {
 	Tucano::Face display_face;
 	float closest = INFINITY;
-	int level = 0;
 	bool intersected = false;
-	Eigen::Vector3f result = Eigen::Vector3f(0.5, 0.5, 0);
+	Eigen::Vector3f result = Eigen::Vector3f(0.9, 0.9, 0.9);
 	if (bBoxIntersection(boxes, dest, origin)) {
 	for (int i = 0; i < mesh.getNumberOfFaces(); i++) {
 		Tucano::Face current_face = mesh.getFace(i);
@@ -217,11 +220,7 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f &origin,
 			}
 		}
 	}
-
-	Eigen::Vector3f tempShading = Eigen::Vector3f(rand() / (float)RAND_MAX, rand() / (float)RAND_MAX,
-		rand() / (float)RAND_MAX);
-	//if (intersected) result = shade(level, display_face, origin, closest * dest); // check origin*dest
-	if (intersected) result = tempShading;
+	if (intersected) result = shade(level, display_face, origin, closest * dest, boxes); // check origin*dest
 
 	return result;
 }
@@ -293,73 +292,75 @@ float Flyscene::distance3f(Eigen::Vector3f vec1, Eigen::Vector3f vec2) {
 // http://www.cs.utah.edu/~awilliam/box/box.pdf
 bool Flyscene::bBoxIntersection(const vector<Box>& boxes, const Eigen::Vector3f& destination, const Eigen::Vector3f& origin) {
 
-	for (int i = 0; i < boxes.size(); i++) {
-		Box box = boxes.at(i);
-		float maximum_x_value, maximum_y_value, maximum_z_value, minimum_x_value, minimum_y_value, minimum_z_value;
-		minimum_x_value = box.min.x();
-		maximum_x_value = box.max.x();
+	if (destination.x() >= 0 || destination.y() >= 0 || destination.z() >= 0) {
+		for (int i = 0; i < boxes.size(); i++) {
+			Box box = boxes.at(i);
+			float maximum_x_value, maximum_y_value, maximum_z_value, minimum_x_value, minimum_y_value, minimum_z_value;
+			minimum_x_value = box.min.x();
+			maximum_x_value = box.max.x();
 
-		minimum_y_value = box.min.y();
-		maximum_y_value = box.max.y();
+			minimum_y_value = box.min.y();
+			maximum_y_value = box.max.y();
 
-		minimum_z_value = box.min.z();
-		maximum_z_value = box.max.z();
+			minimum_z_value = box.min.z();
+			maximum_z_value = box.max.z();
 
-		float minimum_tx_value, maximum_tx_value, minimum_ty_value, maximum_ty_value, minimum_tz_value, maximum_tz_value;
+			float minimum_tx_value, maximum_tx_value, minimum_ty_value, maximum_ty_value, minimum_tz_value, maximum_tz_value;
 
-		// X
-		if (destination.x() >= 0) {
-			minimum_tx_value = (minimum_x_value - origin.x()) / destination.x();
-			maximum_tx_value = (maximum_x_value - origin.x()) / destination.x();
-		}
-		else {
-			minimum_tx_value = (maximum_x_value - origin.x()) / destination.x();
-			maximum_tx_value = (minimum_x_value - origin.x()) / destination.x();
-		}
+			// X
+			if (destination.x() >= 0) {
+				minimum_tx_value = (minimum_x_value - origin.x()) / destination.x();
+				maximum_tx_value = (maximum_x_value - origin.x()) / destination.x();
+			}
+			else {
+				minimum_tx_value = (maximum_x_value - origin.x()) / destination.x();
+				maximum_tx_value = (minimum_x_value - origin.x()) / destination.x();
+			}
 
-		// Y
-		if (destination.y() >= 0) {
-			minimum_ty_value = (minimum_y_value - origin.y()) / destination.y();
-			maximum_ty_value = (maximum_y_value - origin.y()) / destination.y();
-		}
-		else {
-			minimum_ty_value = (maximum_y_value - origin.y()) / destination.y();
-			maximum_ty_value = (minimum_y_value - origin.y()) / destination.y();
-		}
-		if ((minimum_tx_value > maximum_ty_value) || (minimum_ty_value > maximum_tx_value)) {
-			continue;
-		}
+			// Y
+			if (destination.y() >= 0) {
+				minimum_ty_value = (minimum_y_value - origin.y()) / destination.y();
+				maximum_ty_value = (maximum_y_value - origin.y()) / destination.y();
+			}
+			else {
+				minimum_ty_value = (maximum_y_value - origin.y()) / destination.y();
+				maximum_ty_value = (minimum_y_value - origin.y()) / destination.y();
+			}
+			if ((minimum_tx_value > maximum_ty_value) || (minimum_ty_value > maximum_tx_value)) {
+				continue;
+			}
 
-		if (minimum_ty_value > minimum_tx_value) {
-			minimum_tx_value = minimum_ty_value;
-		}
-		if (maximum_ty_value < maximum_tx_value) {
-			maximum_tx_value = maximum_ty_value;
-		}
+			if (minimum_ty_value > minimum_tx_value) {
+				minimum_tx_value = minimum_ty_value;
+			}
+			if (maximum_ty_value < maximum_tx_value) {
+				maximum_tx_value = maximum_ty_value;
+			}
 
-		// Z
-		if (destination.z() >= 0) {
-			minimum_tz_value = (minimum_z_value - origin.z()) / destination.z();
-			maximum_tz_value = (maximum_z_value - origin.z()) / destination.z();
-		}
-		else {
-			minimum_tz_value = (maximum_z_value - origin.z()) / destination.z();
-			maximum_tz_value = (minimum_z_value - origin.z()) / destination.z();
-		}
+			// Z
+			if (destination.z() >= 0) {
+				minimum_tz_value = (minimum_z_value - origin.z()) / destination.z();
+				maximum_tz_value = (maximum_z_value - origin.z()) / destination.z();
+			}
+			else {
+				minimum_tz_value = (maximum_z_value - origin.z()) / destination.z();
+				maximum_tz_value = (minimum_z_value - origin.z()) / destination.z();
+			}
 
-		if ((minimum_tx_value > maximum_tz_value) || (minimum_tz_value > maximum_tx_value)) {
-			continue;
-		}
-		if (minimum_tz_value > minimum_tx_value) {
-			minimum_tx_value = minimum_tz_value;
-		}
-		if (maximum_tz_value < maximum_tx_value) {
-			maximum_tx_value = maximum_tz_value;
-		}
+			if ((minimum_tx_value > maximum_tz_value) || (minimum_tz_value > maximum_tx_value)) {
+				continue;
+			}
+			if (minimum_tz_value > minimum_tx_value) {
+				minimum_tx_value = minimum_tz_value;
+			}
+			if (maximum_tz_value < maximum_tx_value) {
+				maximum_tx_value = maximum_tz_value;
+			}
 
-		//std::cout << " got intersection" <<std::endl;
+			//std::cout << " got intersection" <<std::endl;
 
-		return true;
+			return true;
+		}
 	}
 	return false;
 
@@ -417,4 +418,93 @@ Box Flyscene::getFullBox() {
 
 	Box result = Box(min, max);
 	return result;
+}
+
+Eigen::Vector3f Flyscene::computeDirectLight(Eigen::Vector4f currentColor, Tucano::Face hit, Eigen::Vector3f lightDirection, Eigen::Vector3f origin, Eigen::Vector3f destination) {
+
+	Eigen::Vector3f ka = materials[hit.material_id].getAmbient();
+	Eigen::Vector3f ks = materials[hit.material_id].getSpecular();
+	Eigen::Vector3f kd = materials[hit.material_id].getDiffuse();
+	float shininess = materials[hit.material_id].getShininess();
+
+	float light_intensity = currentColor.w();
+	Eigen::Vector3f eyeDirection = (-1 * (destination - origin)).normalized();
+	Eigen::Vector3f reflectedRay = (lightDirection - 2 * hit.normal.dot(lightDirection) * hit.normal).normalized();
+
+	Eigen::Vector3f ambient = light_intensity * ka;
+	Eigen::Vector3f diffuse = light_intensity * kd * std::max(lightDirection.normalized().dot(-1 * hit.normal.normalized()), 0.f);
+	float cosphi = std::abs((reflectedRay).dot(eyeDirection));
+	Eigen::Vector3f specular = light_intensity * ks * pow(cosphi, shininess);
+
+	//std::cout << "ka:       " << ka.x() << " " << ka.y() << " " << ka.z() << std::endl;
+	//std::cout << "ks:       " << ks.x() << " " << ks.y() << " " << ks.z() << std::endl;
+	//std::cout << "kd:       " << kd.x() << " " << kd.y() << " " << kd.z() << std::endl;
+	//std::cout << "ambient:  " << ambient.x() << " " << ambient.y() << " " << ambient.z() << std::endl;
+	//std::cout << "diffuse:  " << diffuse.x() << " " << diffuse.y() << " " << diffuse.z() << std::endl;
+	//std::cout << "cosphi:   " << cosphi << std::endl;
+	//if (specular.x() > 0.1 || specular.y() > 0.1 || specular.z() > 0.1) {
+	//	std::cout << "reflectedray" << reflectedRay.x() << " " << reflectedRay.y() << " " << reflectedRay.z() << std::endl;
+	//	std::cout << "eyedirection" << eyeDirection.x() << " " << eyeDirection.y() << " " << eyeDirection.z() << std::endl;
+	//	std::cout << "cosphi:2  " << reflectedRay.dot(eyeDirection) << std::endl;
+	//	std::cout << "specular: " << specular.x() << " " << specular.y() << " " << specular.z() << std::endl;
+	//}
+
+
+	Eigen::Vector3f directColor = ambient + diffuse; //+specular;
+	//std::cout << "color:    " << directColor.x() << " " << directColor.y() << " " << directColor.z() << std::endl;
+	return directColor;
+}
+
+Eigen::Vector3f Flyscene::getCenterFace(Tucano::Face face) {
+	Eigen::Vector3f v0 = mesh.getVertex(face.vertex_ids[0]).head<3>();
+	Eigen::Vector3f v1 = mesh.getVertex(face.vertex_ids[1]).head<3>();
+	Eigen::Vector3f v2 = mesh.getVertex(face.vertex_ids[2]).head<3>();
+
+	Eigen::Vector3f centerFace = (v0 + v1 + v2) / 3;
+	return centerFace;
+}
+
+Eigen::Vector3f Flyscene::computeReflected(Eigen::Vector3f origin, Eigen::Vector3f destination, Eigen::Vector3f lightDirection, Tucano::Face hit, int level, vector<Box>& box) {
+	if (level >= 1) {
+		return Eigen::Vector3f(0, 0, 0);
+	}
+	Eigen::Vector3f normal = hit.normal.head<3>();
+	Eigen::Vector3f reflectedRay = (lightDirection - 2 * (lightDirection.dot(normal)) * normal).normalized(); //go through all lights
+
+	//Ray newRay(intersection, reflectedRay);
+	Eigen::Vector3f refOrigin = getCenterFace(hit);
+	Eigen::Vector3f newRay = (reflectedRay - refOrigin).normalized(); //??
+	Eigen::Vector3f reflectedColor = traceRay(refOrigin, newRay, box, level + 1);
+
+	//return the total color. now reflection and refraction is 100%.
+	//std::cout << "reflectedColor" << reflectedColor/* * materials[hit.material_id].getDissolveFactor()*/ << std::endl;
+	return reflectedColor * materials[hit.material_id].getDissolveFactor()/* + refractedColor * materials[mat_id].getDissolveFactor()*/;
+}
+
+Eigen::Vector3f Flyscene::shade(int level, Tucano::Face hit, Eigen::Vector3f origin, Eigen::Vector3f destination, vector<Box>& box) {
+
+	if (hit.vertex_ids.size() == 0) {
+		return Eigen::Vector3f(0.f, 0.f, 0.f);
+	}
+	Eigen::Vector4f startColor = lightrep.getColor();
+
+	Eigen::Vector3f color = Eigen::Vector3f(0.f, 0.f, 0.f);
+
+	for (int i = 0; i < lights.size(); i++) {
+		Eigen::Vector3f lightDirection = (hit.normal - lights.at(i)).normalized();
+		Eigen::Vector3f directColor = computeDirectLight(startColor, hit, lightDirection, origin, destination);
+
+		//Eigen::Vector3f reflectedRay = computeReflectedRay(hit, lightDirection, 1, 0);
+		//Eigen::Vector3f refractedRay = computeRefractedRay(hit, lights.at(0).head<3>(), lightDirection);
+
+		//float fresnelReflection = fresnelReflectedPart(lightDirection, hit);
+		//float fresnelRefraction = 1 - fresnelReflection;
+
+		//float refractedColor = 0.f;
+		Eigen::Vector3f reflectedColor = computeReflected(origin, destination, lightDirection, hit, level, box);
+
+		color = directColor + reflectedColor/* + fresnelReflection * reflectedColor + fresnelRefraction * refractedColor*/;
+
+	}
+	return color;
 }

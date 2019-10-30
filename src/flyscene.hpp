@@ -69,13 +69,21 @@ public:
    * @return a RGB color
    */
   //Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest, Box &box);
-  Eigen::Vector3f traceRay(Eigen::Vector3f& origin, Eigen::Vector3f& dest, vector<Box>& boxes);
+  Eigen::Vector3f traceRay(Eigen::Vector3f& origin, Eigen::Vector3f& dest, vector<Box>& boxes, int level);
   bool intersect(const Eigen::Vector3f& destination, const Eigen::Vector3f& origin, Tucano::Face& face, float& new_intersection);
   float distance3f(Eigen::Vector3f vec1, Eigen::Vector3f vec2);
   bool bBoxIntersection(const vector<Box>& boxes, const Eigen::Vector3f& destination, const Eigen::Vector3f& origin);
   vector<Box> getMoreBoxes();
   //bool bBoxIntersection(const Box& box, const Eigen::Vector3f& destination, const Eigen::Vector3f& origin);
   Box getFullBox();
+
+  Eigen::Vector3f computeDirectLight(Eigen::Vector4f currentColor, Tucano::Face hit, Eigen::Vector3f lightDirection, Eigen::Vector3f origin, Eigen::Vector3f destination);
+
+  Eigen::Vector3f getCenterFace(Tucano::Face face);
+
+  Eigen::Vector3f computeReflected(Eigen::Vector3f origin, Eigen::Vector3f destination, Eigen::Vector3f lightDirection, Tucano::Face hit, int level, vector<Box>& box);
+
+  Eigen::Vector3f shade(int level, Tucano::Face hit, Eigen::Vector3f origin, Eigen::Vector3f destination, vector<Box>& box);
 
 private:
   // A simple phong shader for rendering meshes
