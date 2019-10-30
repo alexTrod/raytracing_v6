@@ -115,8 +115,40 @@ void Flyscene::createDebugRay(const Eigen::Vector2f &mouse_pos) {
   // direction from camera center to click position
   Eigen::Vector3f dir = (screen_pos - flycamera.getCenter()).normalized();
   
+	//set length
+  vector<Box> boxes = getMoreBoxes();
+  float closest = INFINITY;
+  float hitpoint;
+  Tucano::Face display_face;
+  bool intersected = false;
+  Eigen::Vector3f result = Eigen::Vector3f(1, 1, 0);
+  //for each triangle check if intersects
+	if (bBoxIntersection(boxes, screen_pos, flycamera.getCenter())) {
+	  //std::cout << "" << std::endl;
+	  for (int i = 0; i < mesh.getNumberOfFaces(); i++) {
+		  //std::cout << "intersection2" << std::endl;
+		  Tucano::Face current_face = mesh.getFace(i);
+		  float distance;
+		  if (intersect(screen_pos, flycamera.getCenter(), current_face, distance)) {
+			  if (distance > 0 && closest > distance) {
+				  intersected = true;
+				  display_face = current_face;
+				  closest = distance;
+
+			  }
+		  }
+	  }
+  }
+	if (intersected) {
+		hitpoint = closest;
+	}
+	else {
+		hitpoint = 1000;
+	}
+
   // position and orient the cylinder representing the ray
   ray.setOriginOrientation(flycamera.getCenter(), dir);
+  ray.setSize(0.005, hitpoint);
 
   // place the camera representation (frustum) on current camera location, 
   camerarep.resetModelMatrix();
