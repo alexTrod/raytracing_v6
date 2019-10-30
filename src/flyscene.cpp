@@ -142,13 +142,16 @@ void Flyscene::raytraceScene(int width, int height) {
   Eigen::Vector3f origin = flycamera.getCenter();
   Eigen::Vector3f screen_coords;
 
+  Box box = getFullBox();
+
+
   // for every pixel shoot a ray from the origin through the pixel coords
   for (int j = 0; j < image_size[1]; ++j) {
     for (int i = 0; i < image_size[0]; ++i) {
       // create a ray from the camera passing through the pixel (i,j)
       screen_coords = flycamera.screenToWorld(Eigen::Vector2f(i, j));
       // launch raytracing for the given ray and write result to pixel data
-      pixel_data[j][i] = traceRay(origin, screen_coords);
+      pixel_data[j][i] = traceRay(origin, screen_coords, box);
     }
   }
 
@@ -159,11 +162,33 @@ void Flyscene::raytraceScene(int width, int height) {
 
 
 Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f &origin,
-                                   Eigen::Vector3f &dest) {
-  // just some fake random color per pixel until you implement your ray tracing
-  // remember to return your RGB values as floats in the range [0, 1]!!!
-  return Eigen::Vector3f(rand() / (float)RAND_MAX, rand() / (float)RAND_MAX,
-                         rand() / (float)RAND_MAX);
+                                   Eigen::Vector3f &dest, Box& box) {
+	Tucano::Face display_face;
+	float closest = INFINITY;
+	int level = 0;
+	bool intersected = false;
+	Eigen::Vector3f result = Eigen::Vector3f(0.5, 0.5, 0);
+	for (int i = 0; i < mesh.getNumberOfFaces(); i++) {
+		Tucano::Face current_face = mesh.getFace(i);
+		float distance;
+		if (bBoxIntersection(box, dest, origin)) {
+			if (intersect(dest, origin, current_face, distance)) {
+				if (distance > 0 && closest > distance) {
+					intersected = true;
+					std::cout << "distance = " << distance << std::endl;
+					display_face = current_face;
+					closest = distance;
+				}
+			}
+		}
+	}
+
+	Eigen::Vector3f tempShading = Eigen::Vector3f(rand() / (float)RAND_MAX, rand() / (float)RAND_MAX,
+		rand() / (float)RAND_MAX);
+	//if (intersected) result = shade(level, display_face, origin, closest * dest); // check origin*dest
+	if (intersected) result = tempShading;
+
+	return result;
 }
 
 bool Flyscene::intersect(const Eigen::Vector3f& destination, const Eigen::Vector3f& origin, Tucano::Face& face, float& new_intersection) {
