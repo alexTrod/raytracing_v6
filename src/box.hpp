@@ -11,7 +11,12 @@ public:
 		Box::faceList = faceList;
 	}
 
-
+	int getNumberFaces() {
+		return faceList.size();
+	}
+	int getFace(int index) {
+		return faceList.at(index);
+	}
 	Eigen::Vector3f min;
 	Eigen::Vector3f max;
 	vector<int> faceList;
