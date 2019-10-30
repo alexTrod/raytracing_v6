@@ -147,9 +147,10 @@ void Flyscene::raytraceScene(int width, int height) {
 
   // for every pixel shoot a ray from the origin through the pixel coords
   for (int j = 0; j < image_size[1]; ++j) {
+	  std::cout << j << std::endl;
     for (int i = 0; i < image_size[0]; ++i) {
       // create a ray from the camera passing through the pixel (i,j)
-      screen_coords = flycamera.screenToWorld(Eigen::Vector2f(i, j));
+      screen_coords = flycamera.screenToWorld(Eigen::Vector2f(image_size[0] - i, image_size[1] - j));
       // launch raytracing for the given ray and write result to pixel data
       pixel_data[j][i] = traceRay(origin, screen_coords, box);
     }
@@ -175,7 +176,7 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f &origin,
 			if (intersect(dest, origin, current_face, distance)) {
 				if (distance > 0 && closest > distance) {
 					intersected = true;
-					std::cout << "distance = " << distance << std::endl;
+					//std::cout << "distance = " << distance << std::endl;
 					display_face = current_face;
 					closest = distance;
 				}
