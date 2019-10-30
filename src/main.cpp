@@ -57,15 +57,17 @@ void initialize(void) {
 
 void keyCallback(GLFWwindow *window, int key, int scancode, int action,
                  int mods) {
-  if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-    glfwSetWindowShouldClose(window, 1);
-  else if (key == GLFW_KEY_R && action == GLFW_PRESS)
-    flyscene->getCamera()->reset();
-  else if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
-    flyscene->createDebugRay(mouse_pos);
-  else if (key == GLFW_KEY_L && action == GLFW_PRESS)
-    flyscene->addLight();
-  else if (key == GLFW_KEY_T && action == GLFW_PRESS)
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+		glfwSetWindowShouldClose(window, 1);
+	else if (key == GLFW_KEY_R && action == GLFW_PRESS)
+		flyscene->getCamera()->reset();
+	else if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+		flyscene->createDebugRay(mouse_pos);
+	else if (key == GLFW_KEY_L && action == GLFW_PRESS)
+		flyscene->addLight();
+	else if (key == GLFW_KEY_V && action == GLFW_PRESS)
+		flyscene->addPointLight();
+	else if (key == GLFW_KEY_T && action == GLFW_PRESS)
     flyscene->raytraceScene();
 }
 
@@ -117,6 +119,8 @@ int main(int argc, char *argv[]) {
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
   initialize();
+
+
 
   while (!glfwWindowShouldClose(main_window)) {
     glfwMakeContextCurrent(main_window);

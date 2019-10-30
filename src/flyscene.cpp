@@ -27,8 +27,13 @@ void Flyscene::initialize(int width, int height) {
 	lightrep.setColor(Eigen::Vector4f(1.0, 1.0, 0.0, 0.7));
 	lightrep.setSize(0.15);
 
+	pointLightRep.setColor(Eigen::Vector4f(0, 0, 0, 1));
+	pointLightRep.setSize(0.05);
+
 	// create a first ray-tracing light source at some random position
 	lights.push_back(Eigen::Vector3f(-0.5, 2.0, 3.0));
+	//add some pointlight
+	pointLights.push_back(Eigen::Vector3f(-0.5, 1.0, 2.0));
 
 	// scale the camera representation (frustum) for the ray debug
 	camerarep.shapeMatrix()->scale(0.2);
@@ -82,6 +87,11 @@ void Flyscene::paintGL(void) {
 		lightrep.resetModelMatrix();
 		lightrep.modelMatrix()->translate(lights[i]);
 		lightrep.render(flycamera, scene_light);
+	}
+	for (int j = 0; j < pointLights.size(); ++j) {
+		pointLightRep.resetModelMatrix();
+		pointLightRep.modelMatrix()->translate(pointLights[j]);
+		pointLightRep.render(flycamera, scene_light);
 	}
 
 	// render coordinate system at lower right corner
@@ -226,47 +236,6 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
 }
 
 
-Eigen::Vector3f Flyscene::shadow(Tucano::Face face, Eigen::Vector3f in_color) {
-
-	vector<Eigen::Vector3f> vec;
-
-	if (face.vertex_ids.size() == 0) {
-		return Eigen::Vector3f(0.f, 0.f, 0.f);
-	}
-
-	if (!visibility(face, vec)) {
-		for (Eigen::Vector3f curr_light : vec) {
-			if (!true) {//type = sphere light - soft shadows, formula from https://www.scratchapixel.com/lessons/3d-basic-rendering/introduction-to-shading/shading-spherical-light
-				float hit_p;
-
-				float distance = distance3f(mesh.getVertex(face.vertex_ids[0]).head<3>(), curr_light);
-				float lightIntensity = lightrep.getColor()(3);
-				return (lightIntensity * in_color / (4 * M_PI * distance));
-			}
-			else { // point light - hard shadows
-				Eigen::Vector3f v0 = mesh.getVertex(face.vertex_ids[0]).head<3>();
-				Eigen::Vector3f v1 = mesh.getVertex(face.vertex_ids[1]).head<3>();
-				Eigen::Vector3f v2 = mesh.getVertex(face.vertex_ids[2]).head<3>();
-
-				Eigen::Vector3f centerFace = (v0 + v1 + v2)/3;
-
-				Eigen::Vector3f shadowRayDir = curr_light - centerFace;
-				Eigen::Vector3f shadowRayOrg = centerFace;
-
-				float dist;
-
-				if (intersect(shadowRayDir, shadowRayOrg, face, dist)) {
-					return Eigen::Vector3f(0.f, 0.f, 0.f); //return black when in hard shadow
-				}
-
-				return in_color;
-
-				//return Eigen::Vector4f(in_color(0), in_color(1), in_color(2), 0.1);
-			}
-		}
-	}
-	return in_color;
-}
 bool Flyscene::intersect(const Eigen::Vector3f& destination, const Eigen::Vector3f& origin, Tucano::Face& face, float& new_intersection) {
 
 	if (face.vertex_ids.size() == 0) {

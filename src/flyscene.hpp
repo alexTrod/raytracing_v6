@@ -49,6 +49,7 @@ public:
 	 * @brief Add a new light source
 	 */
 	void addLight(void) { lights.push_back(flycamera.getCenter()); }
+	void addPointLight(void) { pointLights.push_back(flycamera.getCenter());}
 
 	/**
 	 * @brief Create a debug ray at the current camera location and passing
@@ -104,8 +105,13 @@ private:
 	// a frustum to represent the camera in the scene
 	Tucano::Shapes::Sphere lightrep;
 
-	// light sources for ray tracing
+	Tucano::Shapes::Sphere pointLightRep;
+
+	// light sources for ray tracing // sun
 	vector<Eigen::Vector3f> lights;
+
+	// light sources for ray tracing // sun
+	vector<Eigen::Vector3f> pointLights;
 
 	// Scene light represented as a camera
 	Tucano::Camera scene_light;
