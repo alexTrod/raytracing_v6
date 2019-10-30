@@ -85,6 +85,8 @@ public:
 
   Eigen::Vector3f shade(int level, Tucano::Face hit, Eigen::Vector3f origin, Eigen::Vector3f destination, vector<Box>& box);
 
+  Eigen::Vector3f smoothSurfacing(Eigen::Vector3f hitpoint, Tucano::Face face);
+
 private:
   // A simple phong shader for rendering meshes
   Tucano::Effects::PhongMaterial phong;

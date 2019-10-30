@@ -427,6 +427,10 @@ Box Flyscene::getFullBox() {
 
 Eigen::Vector3f Flyscene::computeDirectLight(Eigen::Vector4f currentColor, Tucano::Face hit, Eigen::Vector3f lightDirection, Eigen::Vector3f origin, Eigen::Vector3f destination) {
 
+	float t;
+	intersect(destination, origin, hit, t);
+	Eigen::Vector3f newSmoothNormal = smoothSurfacing((origin + t * destination), hit);
+
 	Eigen::Vector3f ka = materials[hit.material_id].getAmbient();
 	Eigen::Vector3f ks = materials[hit.material_id].getSpecular();
 	Eigen::Vector3f kd = materials[hit.material_id].getDiffuse();
@@ -434,7 +438,7 @@ Eigen::Vector3f Flyscene::computeDirectLight(Eigen::Vector4f currentColor, Tucan
 
 	float light_intensity = currentColor.w();
 	Eigen::Vector3f eyeDirection = (-1 * (destination - origin)).normalized();
-	Eigen::Vector3f reflectedRay = (lightDirection - 2 * hit.normal.dot(lightDirection) * hit.normal).normalized();
+	Eigen::Vector3f reflectedRay = (lightDirection - 2 * newSmoothNormal.dot(lightDirection) * newSmoothNormal).normalized();
 
 	Eigen::Vector3f ambient = light_intensity * ka;
 	Eigen::Vector3f diffuse = light_intensity * kd * std::max(lightDirection.normalized().dot(-1 * hit.normal.normalized()), 0.f);
@@ -470,10 +474,15 @@ Eigen::Vector3f Flyscene::getCenterFace(Tucano::Face face) {
 }
 
 Eigen::Vector3f Flyscene::computeReflected(Eigen::Vector3f origin, Eigen::Vector3f destination, Eigen::Vector3f lightDirection, Tucano::Face hit, int level, vector<Box>& box) {
+	
+	float t;
+	intersect(destination, origin, hit, t);
+	Eigen::Vector3f newSmoothNormal = smoothSurfacing((origin + t * destination), hit);
+	
 	if (level >= 1) {
 		return Eigen::Vector3f(0, 0, 0);
 	}
-	Eigen::Vector3f normal = hit.normal.head<3>();
+	Eigen::Vector3f normal = newSmoothNormal.head<3>();
 	Eigen::Vector3f reflectedRay = (lightDirection - 2 * (lightDirection.dot(normal)) * normal).normalized(); //go through all lights
 
 	//Ray newRay(intersection, reflectedRay);
@@ -488,6 +497,10 @@ Eigen::Vector3f Flyscene::computeReflected(Eigen::Vector3f origin, Eigen::Vector
 
 Eigen::Vector3f Flyscene::shade(int level, Tucano::Face hit, Eigen::Vector3f origin, Eigen::Vector3f destination, vector<Box>& box) {
 
+	float t;
+	intersect(destination, origin, hit, t);
+	Eigen::Vector3f newSmoothNormal = smoothSurfacing((origin + t * destination), hit);
+
 	if (hit.vertex_ids.size() == 0) {
 		return Eigen::Vector3f(0.f, 0.f, 0.f);
 	}
@@ -496,7 +509,7 @@ Eigen::Vector3f Flyscene::shade(int level, Tucano::Face hit, Eigen::Vector3f ori
 	Eigen::Vector3f color = Eigen::Vector3f(0.f, 0.f, 0.f);
 
 	for (int i = 0; i < lights.size(); i++) {
-		Eigen::Vector3f lightDirection = (hit.normal - lights.at(i)).normalized();
+		Eigen::Vector3f lightDirection = (newSmoothNormal - lights.at(i)).normalized();
 		Eigen::Vector3f directColor = computeDirectLight(startColor, hit, lightDirection, origin, destination);
 
 		//Eigen::Vector3f reflectedRay = computeReflectedRay(hit, lightDirection, 1, 0);
@@ -512,4 +525,36 @@ Eigen::Vector3f Flyscene::shade(int level, Tucano::Face hit, Eigen::Vector3f ori
 
 	}
 	return color;
+}
+
+Eigen::Vector3f Flyscene::smoothSurfacing(Eigen::Vector3f hitpoint, Tucano::Face face) {
+
+	//v0 is A
+	//v1 is B
+	//v2 is C
+
+	Eigen::Vector3f v0 = (mesh.getVertex(face.vertex_ids[0]).head<3>());
+	Eigen::Vector3f v1 = (mesh.getVertex(face.vertex_ids[1]).head<3>());
+	Eigen::Vector3f v2 = (mesh.getVertex(face.vertex_ids[2]).head<3>());
+
+	// Get the vertex normals
+	Eigen::Vector3f normal_zero = (mesh.getNormal(face.vertex_ids[0]).head<3>());
+	Eigen::Vector3f normal_one = (mesh.getNormal(face.vertex_ids[1]).head<3>());
+	Eigen::Vector3f normal_two = (mesh.getNormal(face.vertex_ids[2]).head<3>());
+
+	// Get the barycentric coordinates
+	float ABCArea = ((v1 - v0).cross(v2 - v0)).size() / 2;
+	float ABPArea = ((v1 - v0).cross(hitpoint - v0)).size() / 2;
+	float ACPArea = ((v2 - v0).cross(hitpoint - v0)).size() / 2;
+	float BCPArea = ((v1 - hitpoint).cross(v2 - hitpoint)).size() / 2;
+
+	float u = ACPArea / ABCArea;
+	float v = ABPArea / ABCArea;
+	float w = BCPArea / ABCArea;
+
+	// Calculate the new interpolated normal
+	Eigen::Vector3f interpolatedNormal = w * normal_zero + u * normal_one + v * normal_two;
+
+	// Normalize just to be sure :)
+	return interpolatedNormal.normalized();
 }
