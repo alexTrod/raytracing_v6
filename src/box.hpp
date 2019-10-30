@@ -10,9 +10,9 @@ public:
 		Box::max = ma;
 	}
 
-	Box createBox(Tucano::Mesh mesh){
-		for(int i = 0; i<mesh.getNumberOfVertices(); i++){
-			
+	Box createBox(Tucano::Mesh mesh) {
+		for (int i = 0; i < mesh.getNumberOfVertices(); i++) {
+
 		}
 	}
 

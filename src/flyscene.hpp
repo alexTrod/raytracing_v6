@@ -72,7 +72,7 @@ public:
   bool intersect(const Eigen::Vector3f& destination, const Eigen::Vector3f& origin, Tucano::Face& face, float& new_intersection);
   float distance3f(Eigen::Vector3f vec1, Eigen::Vector3f vec2);
   bool bBoxIntersection(const Box& box, const Eigen::Vector3f& destination, const Eigen::Vector3f& origin);
-
+  Box getFullBox();
 
 private:
   // A simple phong shader for rendering meshes
