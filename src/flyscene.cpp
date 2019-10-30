@@ -13,7 +13,7 @@ void Flyscene::initialize(int width, int height) {
   // load the OBJ file and materials
 
   Tucano::MeshImporter::loadObjFile(mesh, materials,
-                                    "resources/models/cube.obj");
+                                    "resources/models/dodgeColorTest.obj");
 
 
   mesh.normalizeModelMatrix();
@@ -164,4 +164,161 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f &origin,
   // remember to return your RGB values as floats in the range [0, 1]!!!
   return Eigen::Vector3f(rand() / (float)RAND_MAX, rand() / (float)RAND_MAX,
                          rand() / (float)RAND_MAX);
+}
+
+bool Flyscene::intersect(const Eigen::Vector3f& destination, const Eigen::Vector3f& origin, Tucano::Face& face, float& new_intersection) {
+
+	if (face.vertex_ids.size() == 0) {
+		return false;
+	}
+
+	Eigen::Vector3f vector_one = (mesh.getVertex(face.vertex_ids[0]).head<3>());
+	Eigen::Vector3f vector_two = (mesh.getVertex(face.vertex_ids[1]).head<3>());
+	Eigen::Vector3f vector_three = (mesh.getVertex(face.vertex_ids[2]).head<3>());
+
+
+
+	// Face Normal
+	Eigen::Vector3f normal = face.normal;
+
+	float bottomTerm = (destination).dot(normal);
+	if (bottomTerm == 0) {
+		return false;
+	}
+
+	// Distance from the origin
+	float distance = normal.dot(vector_one);
+
+	// T-Point
+	float t = (distance - origin.dot(normal)) / destination.dot(normal);
+
+	// Intersection point
+	Eigen::Vector3f intersectionPoint = origin + (t * destination);
+
+	// Vector perpendicular to face
+	Eigen::Vector3f per;
+
+	// Edge 1
+	Eigen::Vector3f edge_one = vector_two - vector_one;
+	per = edge_one.cross(intersectionPoint - vector_one);
+	if (normal.dot(per) < 0) {
+		return false;
+	}
+
+	// Edge 2
+	Eigen::Vector3f edge_two = vector_three - vector_two;
+	per = edge_two.cross(intersectionPoint - vector_two);
+	if (normal.dot(per) < 0) {
+		return false;
+	}
+
+	// Edge 3
+	Eigen::Vector3f edge_three = vector_one - vector_three;
+	per = edge_three.cross(intersectionPoint - vector_three);
+	if (normal.dot(per) < 0) {
+		return false;
+	}
+	//std::cout << "ffck"  << std::endl;
+	//Update the new intersection point
+
+	new_intersection = distance3f(intersectionPoint, origin);
+	return true;
+}
+
+//compute distance between 3-d vectors 
+float Flyscene::distance3f(Eigen::Vector3f vec1, Eigen::Vector3f vec2) {
+	return sqrt(pow(vec2(0) - vec1(0), 2) + pow(vec2(1) - vec1(1), 2) + pow(vec2(2) - vec1(2), 2));
+}
+
+bool Flyscene::bBoxIntersection(const Box& box, const Eigen::Vector3f& destination, const Eigen::Vector3f& origin) {
+	//std::cout << "start intersection BB" << std::endl;
+	float maximum_x_value, maximum_y_value, maximum_z_value, minimum_x_value, minimum_y_value, minimum_z_value;
+	minimum_x_value = box.min.x();
+	maximum_x_value = box.max.x();
+
+	minimum_y_value = box.min.y();
+	maximum_y_value = box.max.y();
+
+	minimum_z_value = box.min.z();
+	maximum_z_value = box.max.z();
+
+	float minimum_tx_value, maximum_tx_value, minimum_ty_value, maximum_ty_value, minimum_tz_value, maximum_tz_value;
+
+	// X
+	if (destination.x() >= 0) {
+		minimum_tx_value = (minimum_x_value - origin.x()) / destination.x();
+		maximum_tx_value = (maximum_x_value - origin.x()) / destination.x();
+	}
+	else {
+		minimum_tx_value = (maximum_x_value - origin.x()) / destination.x();
+		maximum_tx_value = (minimum_x_value - origin.x()) / destination.x();
+	}
+
+	// Y
+	if (destination.y() >= 0) {
+		minimum_ty_value = (minimum_y_value - origin.y()) / destination.y();
+		maximum_ty_value = (maximum_y_value - origin.y()) / destination.y();
+	}
+	else {
+		minimum_ty_value = (maximum_y_value - origin.y()) / destination.y();
+		maximum_ty_value = (minimum_y_value - origin.y()) / destination.y();
+	}
+	if ((minimum_tx_value > maximum_ty_value) || (minimum_ty_value > maximum_tx_value)) {
+		return false;
+	}
+
+	if (minimum_ty_value > minimum_tx_value) {
+		minimum_tx_value = minimum_ty_value;
+	}
+	if (maximum_ty_value < maximum_tx_value) {
+		maximum_tx_value = maximum_ty_value;
+	}
+
+	// Z
+	if (destination.z() >= 0) {
+		minimum_tz_value = (minimum_z_value - origin.z()) / destination.z();
+		maximum_tz_value = (maximum_z_value - origin.z()) / destination.z();
+	}
+	else {
+		minimum_tz_value = (maximum_z_value - origin.z()) / destination.z();
+		maximum_tz_value = (minimum_z_value - origin.z()) / destination.z();
+	}
+
+	if ((minimum_tx_value > maximum_tz_value) || (minimum_tz_value > maximum_tx_value)) {
+		return false;
+	}
+	if (minimum_tz_value > minimum_tx_value) {
+		minimum_tx_value = minimum_tz_value;
+	}
+	if (maximum_tz_value < maximum_tx_value) {
+		maximum_tx_value = maximum_tz_value;
+	}
+
+	//std::cout << " got intersection" <<std::endl;
+
+	return true;
+
+}
+
+Box Flyscene::getFullBox() {
+	float minimum_x_value = INFINITY, minimum_y_value = INFINITY, minimum_z_value = INFINITY;
+	float maximum_value_value = -INFINITY, maximum_y_value = -INFINITY, maximum_z_value = -INFINITY;
+
+	for (int i = 0; i < mesh.getNumberOfVertices(); i++) {
+		Eigen::Vector4f curr = mesh.getVertex(i);
+
+		minimum_x_value = min(minimum_x_value, curr.x());
+		minimum_y_value = min(minimum_y_value, curr.y());
+		minimum_z_value = min(minimum_z_value, curr.z());
+
+		maximum_value_value = max(maximum_value_value, curr.x());
+		maximum_y_value = max(maximum_y_value, curr.y());
+		maximum_z_value = max(maximum_z_value, curr.z());
+	}
+
+	Eigen::Vector3f min = Eigen::Vector3f(minimum_x_value, minimum_y_value, minimum_z_value);
+	Eigen::Vector3f max = Eigen::Vector3f(maximum_value_value, maximum_y_value, maximum_z_value);
+
+	Box result = Box(min, max);
+	return result;
 }
