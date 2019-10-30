@@ -8,3 +8,4 @@ raytracing.vcxproj.filters
 raytracing.vcxproj.user
 .gitattributes
 CMakeLists.txt
+x64/
