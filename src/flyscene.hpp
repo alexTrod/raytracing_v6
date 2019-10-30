@@ -84,6 +84,8 @@ public:
 	Eigen::Vector3f computeReflected(Eigen::Vector3f origin, Eigen::Vector3f destination, Eigen::Vector3f lightDirection, Tucano::Face hit, int level, vector<Box>& box);
 
 	Eigen::Vector3f shade(int level, Tucano::Face hit, Eigen::Vector3f origin, Eigen::Vector3f destination, vector<Box>& box);
+	Eigen::Vector3f shadow(Tucano::Face face, Eigen::Vector3f in_color);
+	bool visibility(Tucano::Face face, vector<Eigen::Vector3f>& vec_list);
 
 private:
 	// A simple phong shader for rendering meshes
