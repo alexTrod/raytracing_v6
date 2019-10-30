@@ -13,7 +13,7 @@ void Flyscene::initialize(int width, int height) {
   // load the OBJ file and materials
 
   Tucano::MeshImporter::loadObjFile(mesh, materials,
-                                    "resources/models/dodgeColorTest.obj");
+                                    "resources/models/earth.obj");
 
 
   mesh.normalizeModelMatrix();
@@ -122,19 +122,21 @@ void Flyscene::createDebugRay(const Eigen::Vector2f &mouse_pos) {
   Tucano::Face display_face;
   bool intersected = false;
   Eigen::Vector3f result = Eigen::Vector3f(0.9, 0.9, 0.9);
+  for(int a = 0;a<boxes.size();a++){
   //for each triangle check if intersects
-	if (bBoxIntersection(boxes, screen_pos, flycamera.getCenter())) {
-	  //std::cout << "" << std::endl;
-	  for (int i = 0; i < mesh.getNumberOfFaces(); i++) {
-		  //std::cout << "intersection2" << std::endl;
-		  Tucano::Face current_face = mesh.getFace(i);
-		  float distance;
-		  if (intersect(screen_pos, flycamera.getCenter(), current_face, distance)) {
-			  if (distance > 0 && closest > distance) {
-				  intersected = true;
-				  display_face = current_face;
-				  closest = distance;
+	  if (bBoxIntersection(boxes.at(a) , screen_pos, flycamera.getCenter())) {
+		  //std::cout << "" << std::endl;
+		  for (int i = 0; i < boxes.at(a).getNumberFaces(); i++) {
+			  //std::cout << "intersection2" << std::endl;
+			  Tucano::Face current_face = mesh.getFace(boxes.at(a).getFace(i));
+			  float distance;
+			  if (intersect(screen_pos, flycamera.getCenter(), current_face, distance)) {
+				  if (distance > 0 && closest > distance) {
+					  intersected = true;
+					  display_face = current_face;
+					  closest = distance;
 
+				  }
 			  }
 		  }
 	  }
@@ -206,16 +208,18 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f &origin,
 	float closest = INFINITY;
 	bool intersected = false;
 	Eigen::Vector3f result = Eigen::Vector3f(0.9, 0.9, 0.9);
-	if (bBoxIntersection(boxes, dest, origin)) {
-	for (int i = 0; i < mesh.getNumberOfFaces(); i++) {
-		Tucano::Face current_face = mesh.getFace(i);
-		float distance;	
-			if (intersect(dest, origin, current_face, distance)) {
-				if (distance > 0 && closest > distance) {
-					intersected = true;
-					//std::cout << "distance = " << distance << std::endl;
-					display_face = current_face;
-					closest = distance;
+	for (int a = 0; a < boxes.size(); a++) {
+		if (bBoxIntersection(boxes.at(a), dest, origin)) {
+			for (int i = 0; i < boxes.at(a).getNumberFaces(); i++) {
+				Tucano::Face current_face = mesh.getFace(boxes.at(a).getFace(i));
+				float distance;
+				if (intersect(dest, origin, current_face, distance)) {
+					if (distance > 0 && closest > distance) {
+						intersected = true;
+						//std::cout << "distance = " << distance << std::endl;
+						display_face = current_face;
+						closest = distance;
+					}
 				}
 			}
 		}
@@ -290,79 +294,29 @@ float Flyscene::distance3f(Eigen::Vector3f vec1, Eigen::Vector3f vec2) {
 }
 
 // http://www.cs.utah.edu/~awilliam/box/box.pdf
-bool Flyscene::bBoxIntersection(const vector<Box>& boxes, const Eigen::Vector3f& destination, const Eigen::Vector3f& origin) {
+bool Flyscene::bBoxIntersection(Box box, const Eigen::Vector3f& destination, const Eigen::Vector3f& origin) {
 
-	if (destination.x() >= 0 || destination.y() >= 0 || destination.z() >= 0) {
-		for (int i = 0; i < boxes.size(); i++) {
-			Box box = boxes.at(i);
-			float maximum_x_value, maximum_y_value, maximum_z_value, minimum_x_value, minimum_y_value, minimum_z_value;
-			minimum_x_value = box.min.x();
-			maximum_x_value = box.max.x();
+	//For x, find t intersection, and then find out the minimum and maximum
+	float t_x_min = (box.min[0] - origin[0]) / destination[0];
+	float t_x_max = (box.max[0] - origin[0]) / destination[0];
+	if (t_x_min > t_x_max) swap(t_x_min, t_x_max);
 
-			minimum_y_value = box.min.y();
-			maximum_y_value = box.max.y();
+	//For Y, find t intersection, and then find out the minimum and maximum
+	float t_y_min = (box.min[1] - origin[1]) / destination[1];
+	float t_y_max = (box.max[1] - origin[1]) / destination[1];
+	if (t_y_min > t_y_max) swap(t_y_min, t_y_max);
 
-			minimum_z_value = box.min.z();
-			maximum_z_value = box.max.z();
+	//For z, find t intersection, and then find out the minimum and maximum
+	float t_z_min = (box.min[2] - origin[2]) / destination[2];
+	float t_z_max = (box.max[2] - origin[2]) / destination[2];
+	if (t_z_min > t_z_max) swap(t_z_min, t_z_max);
 
-			float minimum_tx_value, maximum_tx_value, minimum_ty_value, maximum_ty_value, minimum_tz_value, maximum_tz_value;
+	//Check if we hit all `first` points first
+	float max_t_in = std::max(t_x_min, std::max(t_y_min, t_z_min));
+	float min_t_out = std::min(t_x_max, std::min(t_y_max, t_z_max));
 
-			// X
-			if (destination.x() >= 0) {
-				minimum_tx_value = (minimum_x_value - origin.x()) / destination.x();
-				maximum_tx_value = (maximum_x_value - origin.x()) / destination.x();
-			}
-			else {
-				minimum_tx_value = (maximum_x_value - origin.x()) / destination.x();
-				maximum_tx_value = (minimum_x_value - origin.x()) / destination.x();
-			}
-
-			// Y
-			if (destination.y() >= 0) {
-				minimum_ty_value = (minimum_y_value - origin.y()) / destination.y();
-				maximum_ty_value = (maximum_y_value - origin.y()) / destination.y();
-			}
-			else {
-				minimum_ty_value = (maximum_y_value - origin.y()) / destination.y();
-				maximum_ty_value = (minimum_y_value - origin.y()) / destination.y();
-			}
-			if ((minimum_tx_value > maximum_ty_value) || (minimum_ty_value > maximum_tx_value)) {
-				continue;
-			}
-
-			if (minimum_ty_value > minimum_tx_value) {
-				minimum_tx_value = minimum_ty_value;
-			}
-			if (maximum_ty_value < maximum_tx_value) {
-				maximum_tx_value = maximum_ty_value;
-			}
-
-			// Z
-			if (destination.z() >= 0) {
-				minimum_tz_value = (minimum_z_value - origin.z()) / destination.z();
-				maximum_tz_value = (maximum_z_value - origin.z()) / destination.z();
-			}
-			else {
-				minimum_tz_value = (maximum_z_value - origin.z()) / destination.z();
-				maximum_tz_value = (minimum_z_value - origin.z()) / destination.z();
-			}
-
-			if ((minimum_tx_value > maximum_tz_value) || (minimum_tz_value > maximum_tx_value)) {
-				continue;
-			}
-			if (minimum_tz_value > minimum_tx_value) {
-				minimum_tx_value = minimum_tz_value;
-			}
-			if (maximum_tz_value < maximum_tx_value) {
-				maximum_tx_value = maximum_tz_value;
-			}
-
-			//std::cout << " got intersection" <<std::endl;
-
-			return true;
-		}
-	}
-	return false;
+	if (min_t_out < 0) return false; //We should hit the box in front of us
+	return max_t_in < min_t_out;
 
 }
 
