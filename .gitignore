@@ -9,3 +9,4 @@ raytracing.vcxproj.user
 .gitattributes
 CMakeLists.txt
 x64/
+result.ppm
