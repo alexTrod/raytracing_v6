@@ -68,10 +68,13 @@ public:
    * @param dest Other point on the ray, usually screen coordinates
    * @return a RGB color
    */
-  Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
+  //Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest, Box &box);
+  Eigen::Vector3f traceRay(Eigen::Vector3f& origin, Eigen::Vector3f& dest, vector<Box>& boxes);
   bool intersect(const Eigen::Vector3f& destination, const Eigen::Vector3f& origin, Tucano::Face& face, float& new_intersection);
   float distance3f(Eigen::Vector3f vec1, Eigen::Vector3f vec2);
-  bool bBoxIntersection(const Box& box, const Eigen::Vector3f& destination, const Eigen::Vector3f& origin);
+  bool bBoxIntersection(const vector<Box>& boxes, const Eigen::Vector3f& destination, const Eigen::Vector3f& origin);
+  vector<Box> getMoreBoxes();
+  //bool bBoxIntersection(const Box& box, const Eigen::Vector3f& destination, const Eigen::Vector3f& origin);
   Box getFullBox();
 
 private:

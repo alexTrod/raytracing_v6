@@ -13,7 +13,7 @@ void Flyscene::initialize(int width, int height) {
   // load the OBJ file and materials
 
   Tucano::MeshImporter::loadObjFile(mesh, materials,
-                                    "resources/models/dodgeColorTest.obj");
+                                    "resources/models/earth(2).obj");
 
 
   mesh.normalizeModelMatrix();
@@ -92,18 +92,18 @@ void Flyscene::simulate(GLFWwindow *window) {
   // Update the camera.
   // NOTE(mickvangelderen): GLFW 3.2 has a problem on ubuntu where some key
   // events are repeated: https://github.com/glfw/glfw/issues/747. Sucks.
-  float dx = (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS ? 1.0 : 0.0) -
-             (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS ? 1.0 : 0.0);
+  float dx = (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS ? 0.05 : 0.0) -
+             (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS ? 0.05 : 0.0);
   float dy = (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS ||
                       glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS
-                  ? 1.0
+                  ? 0.05
                   : 0.0) -
              (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS ||
                       glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS
-                  ? 1.0
+                  ? 0.05
                   : 0.0);
-  float dz = (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS ? 1.0 : 0.0) -
-             (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS ? 1.0 : 0.0);
+  float dz = (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS ? 0.05 : 0.0) -
+             (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS ? 0.05 : 0.0);
   flycamera.translate(dx, dy, dz);
 }
 
@@ -115,8 +115,42 @@ void Flyscene::createDebugRay(const Eigen::Vector2f &mouse_pos) {
   // direction from camera center to click position
   Eigen::Vector3f dir = (screen_pos - flycamera.getCenter()).normalized();
   
+	//set length
+  vector<Box> boxes = getMoreBoxes();
+  float closest = INFINITY;
+  float hitpoint;
+  Tucano::Face display_face;
+  bool intersected = false;
+  Eigen::Vector3f result = Eigen::Vector3f(0.9, 0.9, 0.9);
+  //for each triangle check if intersects
+	if (bBoxIntersection(boxes, screen_pos, flycamera.getCenter())) {
+	  //std::cout << "" << std::endl;
+	  for (int i = 0; i < mesh.getNumberOfFaces(); i++) {
+		  //std::cout << "intersection2" << std::endl;
+		  Tucano::Face current_face = mesh.getFace(i);
+		  float distance;
+		  if (intersect(screen_pos, flycamera.getCenter(), current_face, distance)) {
+			  if (distance > 0 && closest > distance) {
+				  intersected = true;
+				  display_face = current_face;
+				  closest = distance;
+
+			  }
+		  }
+	  }
+  }
+	if (intersected) {
+		hitpoint = closest;
+		ray.setColor(Eigen::Vector4f(0, 1, 0, 1));
+	}
+	else {
+		hitpoint = 1000;
+		ray.setColor(Eigen::Vector4f(1, 0, 0, 1));
+	}
+
   // position and orient the cylinder representing the ray
   ray.setOriginOrientation(flycamera.getCenter(), dir);
+  ray.setSize(0.005, hitpoint);
 
   // place the camera representation (frustum) on current camera location, 
   camerarep.resetModelMatrix();
@@ -142,13 +176,17 @@ void Flyscene::raytraceScene(int width, int height) {
   Eigen::Vector3f origin = flycamera.getCenter();
   Eigen::Vector3f screen_coords;
 
+  vector<Box> boxes = getMoreBoxes();
+
+
   // for every pixel shoot a ray from the origin through the pixel coords
   for (int j = 0; j < image_size[1]; ++j) {
+	  std::cout << j << std::endl;
     for (int i = 0; i < image_size[0]; ++i) {
       // create a ray from the camera passing through the pixel (i,j)
-      screen_coords = flycamera.screenToWorld(Eigen::Vector2f(i, j));
+      screen_coords = flycamera.screenToWorld(Eigen::Vector2f(/*image_size[0] -*/ i, /*image_size[1] - */j));
       // launch raytracing for the given ray and write result to pixel data
-      pixel_data[j][i] = traceRay(origin, screen_coords);
+      pixel_data[j][i] = traceRay(origin, screen_coords, boxes);
     }
   }
 
@@ -159,11 +197,33 @@ void Flyscene::raytraceScene(int width, int height) {
 
 
 Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f &origin,
-                                   Eigen::Vector3f &dest) {
-  // just some fake random color per pixel until you implement your ray tracing
-  // remember to return your RGB values as floats in the range [0, 1]!!!
-  return Eigen::Vector3f(rand() / (float)RAND_MAX, rand() / (float)RAND_MAX,
-                         rand() / (float)RAND_MAX);
+                                   Eigen::Vector3f &dest, vector<Box>& boxes) {
+	Tucano::Face display_face;
+	float closest = INFINITY;
+	int level = 0;
+	bool intersected = false;
+	Eigen::Vector3f result = Eigen::Vector3f(0.5, 0.5, 0);
+	if (bBoxIntersection(boxes, dest, origin)) {
+	for (int i = 0; i < mesh.getNumberOfFaces(); i++) {
+		Tucano::Face current_face = mesh.getFace(i);
+		float distance;	
+			if (intersect(dest, origin, current_face, distance)) {
+				if (distance > 0 && closest > distance) {
+					intersected = true;
+					//std::cout << "distance = " << distance << std::endl;
+					display_face = current_face;
+					closest = distance;
+				}
+			}
+		}
+	}
+
+	Eigen::Vector3f tempShading = Eigen::Vector3f(rand() / (float)RAND_MAX, rand() / (float)RAND_MAX,
+		rand() / (float)RAND_MAX);
+	//if (intersected) result = shade(level, display_face, origin, closest * dest); // check origin*dest
+	if (intersected) result = tempShading;
+
+	return result;
 }
 
 bool Flyscene::intersect(const Eigen::Vector3f& destination, const Eigen::Vector3f& origin, Tucano::Face& face, float& new_intersection) {
@@ -171,10 +231,11 @@ bool Flyscene::intersect(const Eigen::Vector3f& destination, const Eigen::Vector
 	if (face.vertex_ids.size() == 0) {
 		return false;
 	}
+	
 
-	Eigen::Vector3f vector_one = (mesh.getVertex(face.vertex_ids[0]).head<3>());
-	Eigen::Vector3f vector_two = (mesh.getVertex(face.vertex_ids[1]).head<3>());
-	Eigen::Vector3f vector_three = (mesh.getVertex(face.vertex_ids[2]).head<3>());
+	Eigen::Vector3f vector_one = (mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[0])).head<3>();
+	Eigen::Vector3f vector_two = (mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[1])).head<3>();
+	Eigen::Vector3f vector_three = (mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[2])).head<3>();
 
 
 
@@ -218,7 +279,6 @@ bool Flyscene::intersect(const Eigen::Vector3f& destination, const Eigen::Vector
 	if (normal.dot(per) < 0) {
 		return false;
 	}
-	//std::cout << "ffck"  << std::endl;
 	//Update the new intersection point
 
 	new_intersection = distance3f(intersectionPoint, origin);
@@ -230,74 +290,110 @@ float Flyscene::distance3f(Eigen::Vector3f vec1, Eigen::Vector3f vec2) {
 	return sqrt(pow(vec2(0) - vec1(0), 2) + pow(vec2(1) - vec1(1), 2) + pow(vec2(2) - vec1(2), 2));
 }
 
-bool Flyscene::bBoxIntersection(const Box& box, const Eigen::Vector3f& destination, const Eigen::Vector3f& origin) {
-	//std::cout << "start intersection BB" << std::endl;
-	float maximum_x_value, maximum_y_value, maximum_z_value, minimum_x_value, minimum_y_value, minimum_z_value;
-	minimum_x_value = box.min.x();
-	maximum_x_value = box.max.x();
+// http://www.cs.utah.edu/~awilliam/box/box.pdf
+bool Flyscene::bBoxIntersection(const vector<Box>& boxes, const Eigen::Vector3f& destination, const Eigen::Vector3f& origin) {
 
-	minimum_y_value = box.min.y();
-	maximum_y_value = box.max.y();
+	for (int i = 0; i < boxes.size(); i++) {
+		Box box = boxes.at(i);
+		float maximum_x_value, maximum_y_value, maximum_z_value, minimum_x_value, minimum_y_value, minimum_z_value;
+		minimum_x_value = box.min.x();
+		maximum_x_value = box.max.x();
 
-	minimum_z_value = box.min.z();
-	maximum_z_value = box.max.z();
+		minimum_y_value = box.min.y();
+		maximum_y_value = box.max.y();
 
-	float minimum_tx_value, maximum_tx_value, minimum_ty_value, maximum_ty_value, minimum_tz_value, maximum_tz_value;
+		minimum_z_value = box.min.z();
+		maximum_z_value = box.max.z();
 
-	// X
-	if (destination.x() >= 0) {
-		minimum_tx_value = (minimum_x_value - origin.x()) / destination.x();
-		maximum_tx_value = (maximum_x_value - origin.x()) / destination.x();
+		float minimum_tx_value, maximum_tx_value, minimum_ty_value, maximum_ty_value, minimum_tz_value, maximum_tz_value;
+
+		// X
+		if (destination.x() >= 0) {
+			minimum_tx_value = (minimum_x_value - origin.x()) / destination.x();
+			maximum_tx_value = (maximum_x_value - origin.x()) / destination.x();
+		}
+		else {
+			minimum_tx_value = (maximum_x_value - origin.x()) / destination.x();
+			maximum_tx_value = (minimum_x_value - origin.x()) / destination.x();
+		}
+
+		// Y
+		if (destination.y() >= 0) {
+			minimum_ty_value = (minimum_y_value - origin.y()) / destination.y();
+			maximum_ty_value = (maximum_y_value - origin.y()) / destination.y();
+		}
+		else {
+			minimum_ty_value = (maximum_y_value - origin.y()) / destination.y();
+			maximum_ty_value = (minimum_y_value - origin.y()) / destination.y();
+		}
+		if ((minimum_tx_value > maximum_ty_value) || (minimum_ty_value > maximum_tx_value)) {
+			continue;
+		}
+
+		if (minimum_ty_value > minimum_tx_value) {
+			minimum_tx_value = minimum_ty_value;
+		}
+		if (maximum_ty_value < maximum_tx_value) {
+			maximum_tx_value = maximum_ty_value;
+		}
+
+		// Z
+		if (destination.z() >= 0) {
+			minimum_tz_value = (minimum_z_value - origin.z()) / destination.z();
+			maximum_tz_value = (maximum_z_value - origin.z()) / destination.z();
+		}
+		else {
+			minimum_tz_value = (maximum_z_value - origin.z()) / destination.z();
+			maximum_tz_value = (minimum_z_value - origin.z()) / destination.z();
+		}
+
+		if ((minimum_tx_value > maximum_tz_value) || (minimum_tz_value > maximum_tx_value)) {
+			continue;
+		}
+		if (minimum_tz_value > minimum_tx_value) {
+			minimum_tx_value = minimum_tz_value;
+		}
+		if (maximum_tz_value < maximum_tx_value) {
+			maximum_tx_value = maximum_tz_value;
+		}
+
+		//std::cout << " got intersection" <<std::endl;
+
+		return true;
 	}
-	else {
-		minimum_tx_value = (maximum_x_value - origin.x()) / destination.x();
-		maximum_tx_value = (minimum_x_value - origin.x()) / destination.x();
+	return false;
+
+}
+
+vector<Box> Flyscene::getMoreBoxes() {
+
+	vector<Box> result;
+
+	for (int i = 0; i < mesh.getNumberOfVertices(); i++) {
+
+		float minX = INFINITY, minY = INFINITY, minZ = INFINITY;
+		float maxX = -INFINITY, maxY = -INFINITY, maxZ = -INFINITY;
+
+		for (int j = 0; j < 1000 && (i * 1000 + j < mesh.getNumberOfVertices()); j++) {
+			Eigen::Vector4f curr = /*mesh.getShapeModelMatrix() **/ mesh.getVertex(j + i * 1000);
+
+			minX = min(minX, curr.x());
+			minY = min(minY, curr.y());
+			minZ = min(minZ, curr.z());
+
+			maxX = max(maxX, curr.x());
+			maxY = max(maxY, curr.y());
+			maxZ = max(maxZ, curr.z());
+		}
+
+		Eigen::Vector3f min = Eigen::Vector3f(minX, minY, minZ);
+		Eigen::Vector3f max = Eigen::Vector3f(maxX, maxY, maxZ);
+
+		Box resultBox = Box(min, max);
+		result.push_back(resultBox);
 	}
 
-	// Y
-	if (destination.y() >= 0) {
-		minimum_ty_value = (minimum_y_value - origin.y()) / destination.y();
-		maximum_ty_value = (maximum_y_value - origin.y()) / destination.y();
-	}
-	else {
-		minimum_ty_value = (maximum_y_value - origin.y()) / destination.y();
-		maximum_ty_value = (minimum_y_value - origin.y()) / destination.y();
-	}
-	if ((minimum_tx_value > maximum_ty_value) || (minimum_ty_value > maximum_tx_value)) {
-		return false;
-	}
-
-	if (minimum_ty_value > minimum_tx_value) {
-		minimum_tx_value = minimum_ty_value;
-	}
-	if (maximum_ty_value < maximum_tx_value) {
-		maximum_tx_value = maximum_ty_value;
-	}
-
-	// Z
-	if (destination.z() >= 0) {
-		minimum_tz_value = (minimum_z_value - origin.z()) / destination.z();
-		maximum_tz_value = (maximum_z_value - origin.z()) / destination.z();
-	}
-	else {
-		minimum_tz_value = (maximum_z_value - origin.z()) / destination.z();
-		maximum_tz_value = (minimum_z_value - origin.z()) / destination.z();
-	}
-
-	if ((minimum_tx_value > maximum_tz_value) || (minimum_tz_value > maximum_tx_value)) {
-		return false;
-	}
-	if (minimum_tz_value > minimum_tx_value) {
-		minimum_tx_value = minimum_tz_value;
-	}
-	if (maximum_tz_value < maximum_tx_value) {
-		maximum_tx_value = maximum_tz_value;
-	}
-
-	//std::cout << " got intersection" <<std::endl;
-
-	return true;
-
+	return result;
 }
 
 Box Flyscene::getFullBox() {
