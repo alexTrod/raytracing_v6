@@ -13,7 +13,7 @@ void Flyscene::initialize(int width, int height) {
 	// load the OBJ file and materials
 
 	Tucano::MeshImporter::loadObjFile(mesh, materials,
-		"resources/models/earth1.obj");
+		"resources/models/earth1_2.obj");
 
 
 	mesh.normalizeModelMatrix();
@@ -24,7 +24,7 @@ void Flyscene::initialize(int width, int height) {
 
 	// set the color and size of the sphere to represent the light sources
 	// same sphere is used for all sources
-	lightrep.setColor(Eigen::Vector4f(1.0, 1.0, 0.0, 0.7));
+	lightrep.setColor(Eigen::Vector4f(1.0, 1.0, 0.0, 1.0));
 	lightrep.setSize(0.15);
 
 	pointLightRep.setColor(Eigen::Vector4f(0, 0, 0, 1));
@@ -42,7 +42,7 @@ void Flyscene::initialize(int width, int height) {
 	ray.setSize(0.005, 1.0);
 
 	// craete a first debug ray pointing at the center of the screen
-	createDebugRay(Eigen::Vector2f(width / 2.0, height / 2.0));
+	createDebugRay(Eigen::Vector2f(width / 2.0, height / 2.0), flycamera.getCenter());
 
 	glEnable(GL_DEPTH_TEST);
 
@@ -117,13 +117,14 @@ void Flyscene::simulate(GLFWwindow* window) {
 	flycamera.translate(dx, dy, dz);
 }
 
-void Flyscene::createDebugRay(const Eigen::Vector2f& mouse_pos) {
+void Flyscene::createDebugRay(const Eigen::Vector2f& mouse_pos, Eigen::Vector3f origin_ray) {
 	ray.resetModelMatrix();
 	// from pixel position to world coordinates
 	Eigen::Vector3f screen_pos = flycamera.screenToWorld(mouse_pos);
 
+	if (origin_ray.x() == -5) origin_ray = flycamera.getCenter();
 	// direction from camera center to click position
-	Eigen::Vector3f dir = (screen_pos - flycamera.getCenter()).normalized();
+	Eigen::Vector3f dir = (screen_pos - origin_ray).normalized();
 
 	//set length
 	vector<Box> boxes = getMoreBoxes();
@@ -133,13 +134,13 @@ void Flyscene::createDebugRay(const Eigen::Vector2f& mouse_pos) {
 	bool intersected = false;
 	Eigen::Vector3f result = Eigen::Vector3f(0, 0, 0);
 	//for each triangle check if intersects
-	if (bBoxIntersection(boxes, screen_pos, flycamera.getCenter())) {
+	if (bBoxIntersection(boxes, screen_pos,origin_ray)) {
 		//std::cout << "" << std::endl;
 		for (int i = 0; i < mesh.getNumberOfFaces(); i++) {
 			//std::cout << "intersection2" << std::endl;
 			Tucano::Face current_face = mesh.getFace(i);
 			float distance;
-			if (intersect(screen_pos, flycamera.getCenter(), current_face, distance)) {
+			if (intersect(screen_pos, origin_ray, current_face, distance)) {
 				if (distance > 0 && closest > distance) {
 					intersected = true;
 					display_face = current_face;
@@ -445,9 +446,6 @@ Eigen::Vector3f Flyscene::computeDirectLight(Eigen::Vector4f currentColor, Tucan
 	Eigen::Vector3f ambient = light_intensity * ka;
 	Eigen::Vector3f diffuse = light_intensity * kd * std::max(lightDirection.normalized().dot(-1 * hit.normal.normalized()), 0.f);
 
-	//float cosphi = std::max(0.0f, eyeToHitPoint.dot(-1 * reflectedLight));
-	//Eigen::Vector3f specular = lightIntensity.cwiseProduct(material.getSpecular()) * pow(cosphi, material.getShininess());
-
 	float cosphi = std::max((reflectedRay).dot(-eyeDirection), 0.f);
 	Eigen::Vector3f specular = light_intensity * ks * pow(cosphi, shininess);
 
@@ -482,7 +480,7 @@ Eigen::Vector3f Flyscene::getCenterFace(Tucano::Face face) {
 }
 
 Eigen::Vector3f Flyscene::computeReflected(Eigen::Vector3f origin, Eigen::Vector3f destination, Eigen::Vector3f lightDirection, Tucano::Face hit, int level, vector<Box>& box) {
-	if (level >= 1) {
+	if (level >= 4) {
 		return Eigen::Vector3f(0, 0, 0);
 	}
 	Eigen::Vector3f normal = hit.normal.head<3>();
@@ -492,10 +490,13 @@ Eigen::Vector3f Flyscene::computeReflected(Eigen::Vector3f origin, Eigen::Vector
 	Eigen::Vector3f refOrigin = getCenterFace(hit);
 	Eigen::Vector3f newRay = (reflectedRay - refOrigin).normalized(); //??
 	Eigen::Vector3f reflectedColor = traceRay(refOrigin, newRay, box, level + 1);
-
+	//createDebugRay(reflectedRay, refOrigin);
 	//return the total color. now reflection and refraction is 100%.
-	//std::cout << "reflectedColor" << reflectedColor/* * materials[hit.material_id].getDissolveFactor()*/ << std::endl;
-	return reflectedColor * materials[hit.material_id].getDissolveFactor()/* + refractedColor * materials[mat_id].getDissolveFactor()*/;
+	//std::cout << "level" << level << std::endl;
+	//std::cout << "reflectedColor: " << reflectedColor << std::endl;
+	Eigen::Vector3f result = reflectedColor * materials[hit.material_id].getDissolveFactor();
+	std::cout << "result = " << result;
+	return reflectedColor * materials[hit.material_id].getDissolveFactor();
 }
 
 Eigen::Vector3f Flyscene::shade(int level, Tucano::Face hit, Eigen::Vector3f origin, Eigen::Vector3f destination, vector<Box>& box) {
@@ -512,7 +513,7 @@ Eigen::Vector3f Flyscene::shade(int level, Tucano::Face hit, Eigen::Vector3f ori
 			Eigen::Vector3f lightDirection = (hit.normal - lights.at(i)).normalized();
 			Eigen::Vector3f directColor = computeDirectLight(startColor, hit, lightDirection, origin, destination);
 
-			color = directColor;
+			color += directColor;
 		}
 	}
 	else {
@@ -528,12 +529,15 @@ Eigen::Vector3f Flyscene::shade(int level, Tucano::Face hit, Eigen::Vector3f ori
 
 			//float refractedColor = 0.f;
 			Eigen::Vector3f reflectedColor = computeReflected(origin, destination, lightDirection, hit, level, box);
+			//std::cout << "reflectedcolor: " << reflectedColor << std::endl;
+			//std::cout << "directColor: " << directColor << std::endl;
 
-			color = directColor + reflectedColor/* + fresnelReflection * reflectedColor + fresnelRefraction * refractedColor*/;
+			color += directColor + reflectedColor/* + fresnelReflection * reflectedColor + fresnelRefraction * refractedColor*/;
+			//std::cout << "color : " << color << std::endl;
 		}
 	}
-	Eigen::Vector3f outColor = shadow(hit, color);
-	return outColor;
+	//Eigen::Vector3f outColor = shadow(hit, color);
+	return color;
 }
 
 //SHADOW PART

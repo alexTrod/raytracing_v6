@@ -62,7 +62,7 @@ void keyCallback(GLFWwindow *window, int key, int scancode, int action,
 	else if (key == GLFW_KEY_R && action == GLFW_PRESS)
 		flyscene->getCamera()->reset();
 	else if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
-		flyscene->createDebugRay(mouse_pos);
+		flyscene->createDebugRay(mouse_pos, Eigen::Vector3f(-5,-5,-5));
 	else if (key == GLFW_KEY_L && action == GLFW_PRESS)
 		flyscene->addLight();
 	else if (key == GLFW_KEY_V && action == GLFW_PRESS)

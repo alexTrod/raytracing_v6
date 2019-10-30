@@ -56,7 +56,7 @@ public:
 	 * through pixel that mouse is over
 	 * @param mouse_pos Mouse cursor position in pixels
 	 */
-	void createDebugRay(const Eigen::Vector2f& mouse_pos);
+	void createDebugRay(const Eigen::Vector2f& mouse_pos, Eigen::Vector3f origin);
 
 	/**
 	 * @brief raytrace your scene from current camera position
