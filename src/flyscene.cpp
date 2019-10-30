@@ -13,7 +13,7 @@ void Flyscene::initialize(int width, int height) {
   // load the OBJ file and materials
 
   Tucano::MeshImporter::loadObjFile(mesh, materials,
-                                    "resources/models/dodgeColorTest.obj");
+                                    "resources/models/earth(2).obj");
 
 
   mesh.normalizeModelMatrix();
@@ -92,18 +92,18 @@ void Flyscene::simulate(GLFWwindow *window) {
   // Update the camera.
   // NOTE(mickvangelderen): GLFW 3.2 has a problem on ubuntu where some key
   // events are repeated: https://github.com/glfw/glfw/issues/747. Sucks.
-  float dx = (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS ? 1.0 : 0.0) -
-             (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS ? 1.0 : 0.0);
+  float dx = (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS ? 0.05 : 0.0) -
+             (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS ? 0.05 : 0.0);
   float dy = (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS ||
                       glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS
-                  ? 1.0
+                  ? 0.05
                   : 0.0) -
              (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS ||
                       glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS
-                  ? 1.0
+                  ? 0.05
                   : 0.0);
-  float dz = (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS ? 1.0 : 0.0) -
-             (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS ? 1.0 : 0.0);
+  float dz = (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS ? 0.05 : 0.0) -
+             (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS ? 0.05 : 0.0);
   flycamera.translate(dx, dy, dz);
 }
 
@@ -121,7 +121,7 @@ void Flyscene::createDebugRay(const Eigen::Vector2f &mouse_pos) {
   float hitpoint;
   Tucano::Face display_face;
   bool intersected = false;
-  Eigen::Vector3f result = Eigen::Vector3f(1, 1, 0);
+  Eigen::Vector3f result = Eigen::Vector3f(0.9, 0.9, 0.9);
   //for each triangle check if intersects
 	if (bBoxIntersection(boxes, screen_pos, flycamera.getCenter())) {
 	  //std::cout << "" << std::endl;
@@ -141,9 +141,11 @@ void Flyscene::createDebugRay(const Eigen::Vector2f &mouse_pos) {
   }
 	if (intersected) {
 		hitpoint = closest;
+		ray.setColor(Eigen::Vector4f(0, 1, 0, 1));
 	}
 	else {
 		hitpoint = 1000;
+		ray.setColor(Eigen::Vector4f(1, 0, 0, 1));
 	}
 
   // position and orient the cylinder representing the ray
@@ -182,7 +184,7 @@ void Flyscene::raytraceScene(int width, int height) {
 	  std::cout << j << std::endl;
     for (int i = 0; i < image_size[0]; ++i) {
       // create a ray from the camera passing through the pixel (i,j)
-      screen_coords = flycamera.screenToWorld(Eigen::Vector2f(image_size[0] - i, image_size[1] - j));
+      screen_coords = flycamera.screenToWorld(Eigen::Vector2f(/*image_size[0] -*/ i, /*image_size[1] - */j));
       // launch raytracing for the given ray and write result to pixel data
       pixel_data[j][i] = traceRay(origin, screen_coords, boxes);
     }
@@ -229,10 +231,11 @@ bool Flyscene::intersect(const Eigen::Vector3f& destination, const Eigen::Vector
 	if (face.vertex_ids.size() == 0) {
 		return false;
 	}
+	
 
-	Eigen::Vector3f vector_one = (mesh.getVertex(face.vertex_ids[0]).head<3>());
-	Eigen::Vector3f vector_two = (mesh.getVertex(face.vertex_ids[1]).head<3>());
-	Eigen::Vector3f vector_three = (mesh.getVertex(face.vertex_ids[2]).head<3>());
+	Eigen::Vector3f vector_one = (mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[0])).head<3>();
+	Eigen::Vector3f vector_two = (mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[1])).head<3>();
+	Eigen::Vector3f vector_three = (mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[2])).head<3>();
 
 
 
@@ -276,7 +279,6 @@ bool Flyscene::intersect(const Eigen::Vector3f& destination, const Eigen::Vector
 	if (normal.dot(per) < 0) {
 		return false;
 	}
-	//std::cout << "ffck"  << std::endl;
 	//Update the new intersection point
 
 	new_intersection = distance3f(intersectionPoint, origin);
@@ -373,7 +375,7 @@ vector<Box> Flyscene::getMoreBoxes() {
 		float maxX = -INFINITY, maxY = -INFINITY, maxZ = -INFINITY;
 
 		for (int j = 0; j < 1000 && (i * 1000 + j < mesh.getNumberOfVertices()); j++) {
-			Eigen::Vector4f curr = mesh.getVertex(j + i * 1000);
+			Eigen::Vector4f curr = /*mesh.getShapeModelMatrix() **/ mesh.getVertex(j + i * 1000);
 
 			minX = min(minX, curr.x());
 			minY = min(minY, curr.y());
