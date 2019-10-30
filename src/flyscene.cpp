@@ -24,7 +24,7 @@ void Flyscene::initialize(int width, int height) {
 
 	// set the color and size of the sphere to represent the light sources
 	// same sphere is used for all sources
-	lightrep.setColor(Eigen::Vector4f(1.0, 1.0, 0.0, 1.0));
+	lightrep.setColor(Eigen::Vector4f(1.0, 1.0, 0.0, 0.7));
 	lightrep.setSize(0.15);
 
 	// create a first ray-tracing light source at some random position
@@ -433,24 +433,30 @@ Eigen::Vector3f Flyscene::computeDirectLight(Eigen::Vector4f currentColor, Tucan
 
 	Eigen::Vector3f ambient = light_intensity * ka;
 	Eigen::Vector3f diffuse = light_intensity * kd * std::max(lightDirection.normalized().dot(-1 * hit.normal.normalized()), 0.f);
-	float cosphi = std::abs((reflectedRay).dot(eyeDirection));
+
+	//float cosphi = std::max(0.0f, eyeToHitPoint.dot(-1 * reflectedLight));
+	//Eigen::Vector3f specular = lightIntensity.cwiseProduct(material.getSpecular()) * pow(cosphi, material.getShininess());
+
+	float cosphi = std::max((reflectedRay).dot(-eyeDirection), 0.f);
 	Eigen::Vector3f specular = light_intensity * ks * pow(cosphi, shininess);
 
 	//std::cout << "ka:       " << ka.x() << " " << ka.y() << " " << ka.z() << std::endl;
 	//std::cout << "ks:       " << ks.x() << " " << ks.y() << " " << ks.z() << std::endl;
-	//std::cout << "kd:       " << kd.x() << " " << kd.y() << " " << kd.z() << std::endl;
-	//std::cout << "ambient:  " << ambient.x() << " " << ambient.y() << " " << ambient.z() << std::endl;
-	//std::cout << "diffuse:  " << diffuse.x() << " " << diffuse.y() << " " << diffuse.z() << std::endl;
+	////std::cout << "kd:       " << kd.x() << " " << kd.y() << " " << kd.z() << std::endl;
+	////std::cout << "ambient:  " << ambient.x() << " " << ambient.y() << " " << ambient.z() << std::endl;
+	////std::cout << "diffuse:  " << diffuse.x() << " " << diffuse.y() << " " << diffuse.z() << std::endl;
 	//std::cout << "cosphi:   " << cosphi << std::endl;
-	//if (specular.x() > 0.1 || specular.y() > 0.1 || specular.z() > 0.1) {
+	////if (specular.x() > 0.1 || specular.y() > 0.1 || specular.z() > 0.1) {
+	//std::cout << "lightint" << light_intensity << std::endl;
 	//	std::cout << "reflectedray" << reflectedRay.x() << " " << reflectedRay.y() << " " << reflectedRay.z() << std::endl;
 	//	std::cout << "eyedirection" << eyeDirection.x() << " " << eyeDirection.y() << " " << eyeDirection.z() << std::endl;
 	//	std::cout << "cosphi:2  " << reflectedRay.dot(eyeDirection) << std::endl;
 	//	std::cout << "specular: " << specular.x() << " " << specular.y() << " " << specular.z() << std::endl;
+	//	std::cout << "shininess:" << shininess << std::endl;
 	//}
 
 
-	Eigen::Vector3f directColor = ambient + diffuse; //+specular;
+	Eigen::Vector3f directColor = ambient + diffuse + specular;
 	//std::cout << "color:    " << directColor.x() << " " << directColor.y() << " " << directColor.z() << std::endl;
 	return directColor;
 }
@@ -490,21 +496,30 @@ Eigen::Vector3f Flyscene::shade(int level, Tucano::Face hit, Eigen::Vector3f ori
 
 	Eigen::Vector3f color = Eigen::Vector3f(0.f, 0.f, 0.f);
 
-	for (int i = 0; i < lights.size(); i++) {
-		Eigen::Vector3f lightDirection = (hit.normal - lights.at(i)).normalized();
-		Eigen::Vector3f directColor = computeDirectLight(startColor, hit, lightDirection, origin, destination);
+	if (materials[hit.material_id].getDissolveFactor() == 0) {
+		for (int i = 0; i < lights.size(); i++) {
+			Eigen::Vector3f lightDirection = (hit.normal - lights.at(i)).normalized();
+			Eigen::Vector3f directColor = computeDirectLight(startColor, hit, lightDirection, origin, destination);
 
-		//Eigen::Vector3f reflectedRay = computeReflectedRay(hit, lightDirection, 1, 0);
-		//Eigen::Vector3f refractedRay = computeRefractedRay(hit, lights.at(0).head<3>(), lightDirection);
+			color = directColor;
+		}
+	}
+	else {
+		for (int i = 0; i < lights.size(); i++) {
+			Eigen::Vector3f lightDirection = (hit.normal - lights.at(i)).normalized();
+			Eigen::Vector3f directColor = computeDirectLight(startColor, hit, lightDirection, origin, destination);
 
-		//float fresnelReflection = fresnelReflectedPart(lightDirection, hit);
-		//float fresnelRefraction = 1 - fresnelReflection;
+			//Eigen::Vector3f reflectedRay = computeReflectedRay(hit, lightDirection, 1, 0);
+			//Eigen::Vector3f refractedRay = computeRefractedRay(hit, lights.at(0).head<3>(), lightDirection);
 
-		//float refractedColor = 0.f;
-		Eigen::Vector3f reflectedColor = computeReflected(origin, destination, lightDirection, hit, level, box);
+			//float fresnelReflection = fresnelReflectedPart(lightDirection, hit);
+			//float fresnelRefraction = 1 - fresnelReflection;
 
-		color = directColor + reflectedColor/* + fresnelReflection * reflectedColor + fresnelRefraction * refractedColor*/;
+			//float refractedColor = 0.f;
+			Eigen::Vector3f reflectedColor = computeReflected(origin, destination, lightDirection, hit, level, box);
 
+			color = directColor + reflectedColor/* + fresnelReflection * reflectedColor + fresnelRefraction * refractedColor*/;
+		}
 	}
 	return color;
 }
