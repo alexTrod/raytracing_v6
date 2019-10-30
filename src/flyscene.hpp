@@ -16,6 +16,8 @@
 #include <tucano/utils/mtlIO.hpp>
 #include <tucano/utils/objimporter.hpp>
 
+#include "box.hpp"
+
 class Flyscene {
 
 public:
@@ -68,6 +70,13 @@ public:
    * @return a RGB color
    */
   Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
+
+  Box getFullBox();
+
+
+  bool bBoxIntersection(const vector<Box>& boxes, const Eigen::Vector3f& destination, const Eigen::Vector3f& origin);
+
+  vector<Box> getMoreBoxes();
 
 private:
   // A simple phong shader for rendering meshes

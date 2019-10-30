@@ -165,3 +165,133 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f &origin,
   return Eigen::Vector3f(rand() / (float)RAND_MAX, rand() / (float)RAND_MAX,
                          rand() / (float)RAND_MAX);
 }
+
+
+Box Flyscene::getFullBox() {
+	float minimum_x_value = INFINITY, minimum_y_value = INFINITY, minimum_z_value = INFINITY;
+	float maximum_value_value = -INFINITY, maximum_y_value = -INFINITY, maximum_z_value = -INFINITY;
+
+	for (int i = 0; i < mesh.getNumberOfVertices(); i++) {
+		Eigen::Vector4f curr = mesh.getVertex(i);
+
+		minimum_x_value = min(minimum_x_value, curr.x());
+		minimum_y_value = min(minimum_y_value, curr.y());
+		minimum_z_value = min(minimum_z_value, curr.z());
+
+		maximum_value_value = max(maximum_value_value, curr.x());
+		maximum_y_value = max(maximum_y_value, curr.y());
+		maximum_z_value = max(maximum_z_value, curr.z());
+	}
+
+	Eigen::Vector3f min = Eigen::Vector3f(minimum_x_value, minimum_y_value, minimum_z_value);
+	Eigen::Vector3f max = Eigen::Vector3f(maximum_value_value, maximum_y_value, maximum_z_value);
+
+	Box result = Box(min, max);
+	return result;
+}
+
+// http://www.cs.utah.edu/~awilliam/box/box.pdf
+bool Flyscene::bBoxIntersection(const vector<Box>& boxes, const Eigen::Vector3f& destination, const Eigen::Vector3f& origin) {
+
+	for (int i = 0; i < boxes.size(); i++) {
+		Box box = boxes.at(i);
+		float maximum_x_value, maximum_y_value, maximum_z_value, minimum_x_value, minimum_y_value, minimum_z_value;
+		minimum_x_value = box.min.x();
+		maximum_x_value = box.max.x();
+
+		minimum_y_value = box.min.y();
+		maximum_y_value = box.max.y();
+
+		minimum_z_value = box.min.z();
+		maximum_z_value = box.max.z();
+
+		float minimum_tx_value, maximum_tx_value, minimum_ty_value, maximum_ty_value, minimum_tz_value, maximum_tz_value;
+
+		// X
+		if (destination.x() >= 0) {
+			minimum_tx_value = (minimum_x_value - origin.x()) / destination.x();
+			maximum_tx_value = (maximum_x_value - origin.x()) / destination.x();
+		}
+		else {
+			minimum_tx_value = (maximum_x_value - origin.x()) / destination.x();
+			maximum_tx_value = (minimum_x_value - origin.x()) / destination.x();
+		}
+
+		// Y
+		if (destination.y() >= 0) {
+			minimum_ty_value = (minimum_y_value - origin.y()) / destination.y();
+			maximum_ty_value = (maximum_y_value - origin.y()) / destination.y();
+		}
+		else {
+			minimum_ty_value = (maximum_y_value - origin.y()) / destination.y();
+			maximum_ty_value = (minimum_y_value - origin.y()) / destination.y();
+		}
+		if ((minimum_tx_value > maximum_ty_value) || (minimum_ty_value > maximum_tx_value)) {
+			continue;
+		}
+
+		if (minimum_ty_value > minimum_tx_value) {
+			minimum_tx_value = minimum_ty_value;
+		}
+		if (maximum_ty_value < maximum_tx_value) {
+			maximum_tx_value = maximum_ty_value;
+		}
+
+		// Z
+		if (destination.z() >= 0) {
+			minimum_tz_value = (minimum_z_value - origin.z()) / destination.z();
+			maximum_tz_value = (maximum_z_value - origin.z()) / destination.z();
+		}
+		else {
+			minimum_tz_value = (maximum_z_value - origin.z()) / destination.z();
+			maximum_tz_value = (minimum_z_value - origin.z()) / destination.z();
+		}
+
+		if ((minimum_tx_value > maximum_tz_value) || (minimum_tz_value > maximum_tx_value)) {
+			continue;
+		}
+		if (minimum_tz_value > minimum_tx_value) {
+			minimum_tx_value = minimum_tz_value;
+		}
+		if (maximum_tz_value < maximum_tx_value) {
+			maximum_tx_value = maximum_tz_value;
+		}
+
+		//std::cout << " got intersection" <<std::endl;
+
+		return true;
+	}
+	return false;
+
+}
+
+vector<Box> Flyscene::getMoreBoxes() {
+
+	vector<Box> result;
+
+	for (int i = 0; i < mesh.getNumberOfVertices(); i++) {
+
+		float minX = INFINITY, minY = INFINITY, minZ = INFINITY;
+		float maxX = -INFINITY, maxY = -INFINITY, maxZ = -INFINITY;
+
+		for (int j = 0; j < 1000 && (i * 1000 + j < mesh.getNumberOfVertices()); j++) {
+			Eigen::Vector4f curr = mesh.getVertex(j + i * 1000);
+
+			minX = min(minX, curr.x());
+			minY = min(minY, curr.y());
+			minZ = min(minZ, curr.z());
+
+			maxX = max(maxX, curr.x());
+			maxY = max(maxY, curr.y());
+			maxZ = max(maxZ, curr.z());
+		}
+
+		Eigen::Vector3f min = Eigen::Vector3f(minX, minY, minZ);
+		Eigen::Vector3f max = Eigen::Vector3f(maxX, maxY, maxZ);
+
+		Box resultBox = Box(min, max);
+		result.push_back(resultBox);
+	}
+
+	return result;
+}
