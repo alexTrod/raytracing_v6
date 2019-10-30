@@ -1,0 +1,10 @@
+dependencies/
+resources/
+build/
+.vs/
+raytracing.sln
+raytracing.vcxproj
+raytracing.vcxproj.filters
+raytracing.vcxproj.user
+.gitattributes
+CMakeLists.txt
