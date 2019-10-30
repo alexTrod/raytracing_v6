@@ -13,7 +13,7 @@ void Flyscene::initialize(int width, int height) {
   // load the OBJ file and materials
 
   Tucano::MeshImporter::loadObjFile(mesh, materials,
-                                    "resources/models/earth(2).obj");
+                                    "resources/models/dodgeColorTest.obj");
 
 
   mesh.normalizeModelMatrix();
@@ -374,9 +374,12 @@ vector<Box> Flyscene::getMoreBoxes() {
 
 		float minX = INFINITY, minY = INFINITY, minZ = INFINITY;
 		float maxX = -INFINITY, maxY = -INFINITY, maxZ = -INFINITY;
+		vector<int> faceList;
 
 		for (int j = 0; j < 1000 && (i * 1000 + j < mesh.getNumberOfVertices()); j++) {
 			Eigen::Vector4f curr = /*mesh.getShapeModelMatrix() **/ mesh.getVertex(j + i * 1000);
+			
+			faceList.push_back(j + i*1000);
 
 			minX = min(minX, curr.x());
 			minY = min(minY, curr.y());
@@ -390,7 +393,7 @@ vector<Box> Flyscene::getMoreBoxes() {
 		Eigen::Vector3f min = Eigen::Vector3f(minX, minY, minZ);
 		Eigen::Vector3f max = Eigen::Vector3f(maxX, maxY, maxZ);
 
-		Box resultBox = Box(min, max);
+		Box resultBox = Box(min, max, faceList);
 		result.push_back(resultBox);
 	}
 
@@ -400,9 +403,11 @@ vector<Box> Flyscene::getMoreBoxes() {
 Box Flyscene::getFullBox() {
 	float minimum_x_value = INFINITY, minimum_y_value = INFINITY, minimum_z_value = INFINITY;
 	float maximum_value_value = -INFINITY, maximum_y_value = -INFINITY, maximum_z_value = -INFINITY;
+	vector<int> faceList;
 
 	for (int i = 0; i < mesh.getNumberOfVertices(); i++) {
 		Eigen::Vector4f curr = mesh.getVertex(i);
+		faceList.push_back(i);
 
 		minimum_x_value = min(minimum_x_value, curr.x());
 		minimum_y_value = min(minimum_y_value, curr.y());
@@ -416,7 +421,7 @@ Box Flyscene::getFullBox() {
 	Eigen::Vector3f min = Eigen::Vector3f(minimum_x_value, minimum_y_value, minimum_z_value);
 	Eigen::Vector3f max = Eigen::Vector3f(maximum_value_value, maximum_y_value, maximum_z_value);
 
-	Box result = Box(min, max);
+	Box result = Box(min, max, faceList);
 	return result;
 }
 
