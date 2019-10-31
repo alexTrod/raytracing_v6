@@ -449,24 +449,7 @@ Eigen::Vector3f Flyscene::computeDirectLight(Eigen::Vector4f currentColor, Tucan
 	float cosphi = std::max((reflectedRay).dot(-eyeDirection), 0.f);
 	Eigen::Vector3f specular = light_intensity * ks * pow(cosphi, shininess);
 
-	//std::cout << "ka:       " << ka.x() << " " << ka.y() << " " << ka.z() << std::endl;
-	//std::cout << "ks:       " << ks.x() << " " << ks.y() << " " << ks.z() << std::endl;
-	////std::cout << "kd:       " << kd.x() << " " << kd.y() << " " << kd.z() << std::endl;
-	////std::cout << "ambient:  " << ambient.x() << " " << ambient.y() << " " << ambient.z() << std::endl;
-	////std::cout << "diffuse:  " << diffuse.x() << " " << diffuse.y() << " " << diffuse.z() << std::endl;
-	//std::cout << "cosphi:   " << cosphi << std::endl;
-	////if (specular.x() > 0.1 || specular.y() > 0.1 || specular.z() > 0.1) {
-	//std::cout << "lightint" << light_intensity << std::endl;
-	//	std::cout << "reflectedray" << reflectedRay.x() << " " << reflectedRay.y() << " " << reflectedRay.z() << std::endl;
-	//	std::cout << "eyedirection" << eyeDirection.x() << " " << eyeDirection.y() << " " << eyeDirection.z() << std::endl;
-	//	std::cout << "cosphi:2  " << reflectedRay.dot(eyeDirection) << std::endl;
-	//	std::cout << "specular: " << specular.x() << " " << specular.y() << " " << specular.z() << std::endl;
-	//	std::cout << "shininess:" << shininess << std::endl;
-	//}
-
-
 	Eigen::Vector3f directColor = ambient + diffuse + specular;
-	//std::cout << "color:    " << directColor.x() << " " << directColor.y() << " " << directColor.z() << std::endl;
 	return directColor;
 }
 
@@ -486,20 +469,17 @@ Eigen::Vector3f Flyscene::computeReflected(Eigen::Vector3f origin, Eigen::Vector
 	Eigen::Vector3f normal = hit.normal.head<3>();
 	Eigen::Vector3f reflectedRay = (lightDirection - 2 * (lightDirection.dot(normal)) * normal).normalized(); //go through all lights
 
-	//Ray newRay(intersection, reflectedRay);
 	Eigen::Vector3f refOrigin = getCenterFace(hit);
-	Eigen::Vector3f newRay = (reflectedRay - refOrigin).normalized(); //??
+	Eigen::Vector3f newRay = (reflectedRay - refOrigin).normalized();
 	Eigen::Vector3f reflectedColor = traceRay(refOrigin, newRay, box, level + 1);
-	//createDebugRay(reflectedRay, refOrigin);
-	//return the total color. now reflection and refraction is 100%.
-	//std::cout << "level" << level << std::endl;
-	//std::cout << "reflectedColor: " << reflectedColor << std::endl;
-	Eigen::Vector3f result = reflectedColor * materials[hit.material_id].getDissolveFactor();
-	std::cout << "result = " << result;
 	return reflectedColor * materials[hit.material_id].getDissolveFactor();
 }
 
 Eigen::Vector3f Flyscene::shade(int level, Tucano::Face hit, Eigen::Vector3f origin, Eigen::Vector3f destination, vector<Box>& box) {
+
+	float t;
+	intersect(destination, origin, hit, t);
+	Eigen::Vector3f newSmoothNormal = smoothSurfacing((origin + t * destination), hit);
 
 	if (hit.vertex_ids.size() == 0) {
 		return Eigen::Vector3f(0.f, 0.f, 0.f);
@@ -508,36 +488,69 @@ Eigen::Vector3f Flyscene::shade(int level, Tucano::Face hit, Eigen::Vector3f ori
 
 	Eigen::Vector3f color = Eigen::Vector3f(0.f, 0.f, 0.f);
 
-	if (materials[hit.material_id].getDissolveFactor() == 0) {
-		for (int i = 0; i < lights.size(); i++) {
-			Eigen::Vector3f lightDirection = (hit.normal - lights.at(i)).normalized();
-			Eigen::Vector3f directColor = computeDirectLight(startColor, hit, lightDirection, origin, destination);
 
-			color += directColor;
+		if (materials[hit.material_id].getDissolveFactor() == 0) {
+			for (int i = 0; i < lights.size(); i++) {
+				Eigen::Vector3f lightDirection = (newSmoothNormal - lights.at(i)).normalized();
+				Eigen::Vector3f directColor = computeDirectLight(startColor, hit, lightDirection, origin, destination);
+
+				color += directColor;
+			}
 		}
-	}
-	else {
-		for (int i = 0; i < lights.size(); i++) {
-			Eigen::Vector3f lightDirection = (hit.normal - lights.at(i)).normalized();
-			Eigen::Vector3f directColor = computeDirectLight(startColor, hit, lightDirection, origin, destination);
+		else {
+			for (int i = 0; i < lights.size(); i++) {
+				Eigen::Vector3f lightDirection = (hit.normal - lights.at(i)).normalized();
+				Eigen::Vector3f directColor = computeDirectLight(startColor, hit, lightDirection, origin, destination);
 
-			//Eigen::Vector3f reflectedRay = computeReflectedRay(hit, lightDirection, 1, 0);
-			//Eigen::Vector3f refractedRay = computeRefractedRay(hit, lights.at(0).head<3>(), lightDirection);
+				//Eigen::Vector3f reflectedRay = computeReflectedRay(hit, lightDirection, 1, 0);
+				//Eigen::Vector3f refractedRay = computeRefractedRay(hit, lights.at(0).head<3>(), lightDirection);
 
-			//float fresnelReflection = fresnelReflectedPart(lightDirection, hit);
-			//float fresnelRefraction = 1 - fresnelReflection;
+				//float fresnelReflection = fresnelReflectedPart(lightDirection, hit);
+				//float fresnelRefraction = 1 - fresnelReflection;
 
-			//float refractedColor = 0.f;
-			Eigen::Vector3f reflectedColor = computeReflected(origin, destination, lightDirection, hit, level, box);
-			//std::cout << "reflectedcolor: " << reflectedColor << std::endl;
-			//std::cout << "directColor: " << directColor << std::endl;
+				//float refractedColor = 0.f;
+				Eigen::Vector3f reflectedColor = computeReflected(origin, destination, lightDirection, hit, level, box);
+				//std::cout << "reflectedcolor: " << reflectedColor << std::endl;
+				//std::cout << "directColor: " << directColor << std::endl;
 
-			color += directColor + reflectedColor/* + fresnelReflection * reflectedColor + fresnelRefraction * refractedColor*/;
-			//std::cout << "color : " << color << std::endl;
+				color += directColor + reflectedColor/* + fresnelReflection * reflectedColor + fresnelRefraction * refractedColor*/;
+				//std::cout << "color : " << color << std::endl;
+			}
 		}
+		//Eigen::Vector3f outColor = shadow(hit, color);
+		return color;
 	}
-	//Eigen::Vector3f outColor = shadow(hit, color);
-	return color;
+
+Eigen::Vector3f Flyscene::smoothSurfacing(Eigen::Vector3f hitpoint, Tucano::Face face) {
+
+	//v0 is A
+	//v1 is B
+	//v2 is C
+
+	Eigen::Vector3f v0 = (mesh.getVertex(face.vertex_ids[0]).head<3>());
+	Eigen::Vector3f v1 = (mesh.getVertex(face.vertex_ids[1]).head<3>());
+	Eigen::Vector3f v2 = (mesh.getVertex(face.vertex_ids[2]).head<3>());
+
+	// Get the vertex normals
+	Eigen::Vector3f normal_zero = (mesh.getNormal(face.vertex_ids[0]).head<3>());
+	Eigen::Vector3f normal_one = (mesh.getNormal(face.vertex_ids[1]).head<3>());
+	Eigen::Vector3f normal_two = (mesh.getNormal(face.vertex_ids[2]).head<3>());
+
+	// Get the barycentric coordinates
+	float ABCArea = ((v1 - v0).cross(v2 - v0)).size() / 2;
+	float ABPArea = ((v1 - v0).cross(hitpoint - v0)).size() / 2;
+	float ACPArea = ((v2 - v0).cross(hitpoint - v0)).size() / 2;
+	float BCPArea = ((v1 - hitpoint).cross(v2 - hitpoint)).size() / 2;
+
+	float u = ACPArea / ABCArea;
+	float v = ABPArea / ABCArea;
+	float w = BCPArea / ABCArea;
+
+	// Calculate the new interpolated normal
+	Eigen::Vector3f interpolatedNormal = w * normal_zero + u * normal_one + v * normal_two;
+
+	// Normalize just to be sure :)
+	return interpolatedNormal.normalized();
 }
 
 //SHADOW PART
