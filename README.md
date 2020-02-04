@@ -1,3 +1,3 @@
 # raytracing_v6
  
-[Final output](final_output.jfif) 
+![Final output](final_output.jfif) 
